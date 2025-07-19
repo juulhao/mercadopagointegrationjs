@@ -25,8 +25,9 @@ export default class PaymentsController {
             console.log("Payment Result:", additional_info.items);
             return ctx.response.json({
                 items: additional_info.items,
-                status: status});
-         
+                status: status
+            });
+
         } catch (error: any) {
             console.error('=== PAYMENT ERROR ===');
             console.error('Error object:', error);
@@ -34,13 +35,21 @@ export default class PaymentsController {
     }
 
     public async createCreditCardPreference(ctx: HttpContext) {
-
-        const body: any = ctx.request.body();
-        console.log("Request Body:", body);
-
         try {
-            
-            const result = await preference.create({ body });
+            const body = ctx.request.body();
+
+            const preferenceBody = {
+                items: body.items,
+                payer: body.payer,
+                payment_methods: body.payment_methods,
+                external_reference: body.external_reference,
+                shipments: {
+                    cost: body.shipping_cost,
+                    mode: 'shipping',
+                }
+            };
+
+            const result = await preference.create({ body: preferenceBody });
             ctx.response.status(201);
 
             return ctx.response.json({
@@ -54,12 +63,32 @@ export default class PaymentsController {
             console.error('Error object:', error);
 
             ctx.response.status(error.status || 500);
-            return ctx.response.json({ 
+            return ctx.response.json({
                 error: error.message || 'Unknown error',
                 details: error.cause || [],
                 apiResponse: error.apiResponse || null
             });
-        }       
+        }
+
     }
+    
+   public async handleWebhook(ctx: HttpContext) {
+    const body = ctx.request.body();
+    console.log('🔔 Webhook Mercado Pago recebido:', body);
+
+    // Exemplo: tratar notificações de pagamento
+    if (body.type === 'payment' || body.topic === 'payment') {
+        const paymentId = body.data?.id || body['data.id'];
+        if (paymentId) {
+            // Aqui você pode buscar detalhes do pagamento e atualizar seu sistema
+            // Exemplo:
+            // await this.getPaymentByIdAndUpdateOrder(paymentId);
+            console.log('Pagamento notificado:', paymentId);
+        }
+    }
+
+    // Sempre responda 200 OK rapidamente!
+    return ctx.response.status(200).send('OK');
+}
 
 }

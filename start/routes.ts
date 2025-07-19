@@ -23,7 +23,6 @@ router.get('/', async (ctx) => {
   addCorsHeaders(ctx)
   return 'It works!'
 })
-
 // Rota OPTIONS para lidar com preflight CORS em rotas específicas
 router.route('*', ['OPTIONS'], async (ctx: HttpContext) => {
   addCorsHeaders(ctx)
@@ -40,4 +39,9 @@ router.get('/payment/:id', async (ctx) => {
   addCorsHeaders(ctx)
   const controller = new PaymentsController()
   return controller.getPayment(ctx);
+})
+
+router.post('/webhook/mercadopago', async (ctx) => {
+  const controller = new PaymentsController()
+  return controller.handleWebhook(ctx)
 })

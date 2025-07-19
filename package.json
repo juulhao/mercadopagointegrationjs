@@ -51,6 +51,7 @@
   "dependencies": {
     "@adonisjs/core": "^6.18.0",
     "@adonisjs/cors": "^2.2.1",
+    "melhor-envio": "^1.6.3",
     "mercadopago": "^2.8.0",
     "reflect-metadata": "^0.2.2"
   },
