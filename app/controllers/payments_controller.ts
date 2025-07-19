@@ -1,5 +1,5 @@
 import { HttpContext } from "@adonisjs/core/http";
-import { MercadoPagoConfig, Payment, Preference } from "mercadopago";
+import { MercadoPagoConfig, Preference } from "mercadopago";
 import env from '#start/env'
 const client = new MercadoPagoConfig({
     accessToken: env.get('MP_ACCESS_TOKEN')?.toString()!,
@@ -34,19 +34,19 @@ export default class PaymentsController {
         }
     }
 
-    public async createCreditCardPreference(ctx: HttpContext) {
+    public async directToMercadoLivreCheckoutPayments(ctx: HttpContext) {
         try {
-            const body = ctx.request.body();
+            const body = await ctx.request.body();
+            console.log('Body received for payment:', body);
 
             const preferenceBody = {
                 items: body.items,
                 payer: body.payer,
-                payment_methods: body.payment_methods,
                 external_reference: body.external_reference,
                 shipments: {
                     cost: body.shipping_cost,
-                    mode: 'shipping',
-                }
+                    mode: 'shipping_cost',
+                },
             };
 
             const result = await preference.create({ body: preferenceBody });
@@ -69,26 +69,8 @@ export default class PaymentsController {
                 apiResponse: error.apiResponse || null
             });
         }
-
     }
+
     
-   public async handleWebhook(ctx: HttpContext) {
-    const body = ctx.request.body();
-    console.log('🔔 Webhook Mercado Pago recebido:', body);
-
-    // Exemplo: tratar notificações de pagamento
-    if (body.type === 'payment' || body.topic === 'payment') {
-        const paymentId = body.data?.id || body['data.id'];
-        if (paymentId) {
-            // Aqui você pode buscar detalhes do pagamento e atualizar seu sistema
-            // Exemplo:
-            // await this.getPaymentByIdAndUpdateOrder(paymentId);
-            console.log('Pagamento notificado:', paymentId);
-        }
-    }
-
-    // Sempre responda 200 OK rapidamente!
-    return ctx.response.status(200).send('OK');
-}
 
 }

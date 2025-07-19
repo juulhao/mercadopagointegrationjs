@@ -32,16 +32,11 @@ router.route('*', ['OPTIONS'], async (ctx: HttpContext) => {
 router.post('/payment', async (ctx) => {
   addCorsHeaders(ctx)
   const controller = new PaymentsController()
-  return controller.createCreditCardPreference(ctx);
+  return controller.directToMercadoLivreCheckoutPayments(ctx);
 })
 
 router.get('/payment/:id', async (ctx) => {
   addCorsHeaders(ctx)
   const controller = new PaymentsController()
   return controller.getPayment(ctx);
-})
-
-router.post('/webhook/mercadopago', async (ctx) => {
-  const controller = new PaymentsController()
-  return controller.handleWebhook(ctx)
 })
