@@ -1,0 +1,19 @@
+version: "2"
+authtoken: ""  # Será preenchido automaticamente
+tunnels:
+  mercadopago-api:
+    proto: http
+    addr: 3333
+    host_header: "localhost:3333"
+    inspect: true
+    # Configurações para permitir CORS
+    request_header:
+      add:
+        - "Access-Control-Allow-Origin: *"
+        - "Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH"
+        - "Access-Control-Allow-Headers: Content-Type, Authorization, Accept, X-Requested-With"
+    response_header:
+      add:
+        - "Access-Control-Allow-Origin: *"
+        - "Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH"
+        - "Access-Control-Allow-Headers: Content-Type, Authorization, Accept, X-Requested-With"

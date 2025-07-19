@@ -40,3 +40,17 @@ router.get('/payment/:id', async (ctx) => {
   const controller = new PaymentsController()
   return controller.getPayment(ctx);
 })
+
+// Endpoint para consultar status do pagamento por external_reference
+router.get('/payment-status/:external_reference', async (ctx) => {
+  addCorsHeaders(ctx)
+  const controller = new PaymentsController()
+  return controller.getPaymentStatus(ctx);
+})
+
+// Webhook do Mercado Pago - NÃO ADICIONAR CORS pois é chamado pelo servidor do MP
+router.post('/webhook/mercadopago', async (ctx) => {
+  const controller = new PaymentsController()
+  return controller.handleWebhook(ctx)
+})
+
