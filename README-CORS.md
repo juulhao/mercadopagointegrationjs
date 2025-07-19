@@ -122,3 +122,5 @@ O projeto está **100% funcional** com:
 
 
 https://f9f0500114d2.ngrok-free.app/
+
+assinatura: 9aae384b7659f59a48a1a7006a7c8f11685494481cca85afb04913072192d3e2
