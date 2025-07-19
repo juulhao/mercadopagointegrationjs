@@ -119,3 +119,6 @@ O projeto está **100% funcional** com:
 3. **Configurar webhook** para notificações
 4. **Implementar validações adicionais**
 5. **Configurar ambiente de produção**
+
+
+https://f9f0500114d2.ngrok-free.app/
