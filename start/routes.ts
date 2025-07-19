@@ -48,7 +48,6 @@ router.get('/payment-status/:external_reference', async (ctx) => {
   return controller.getPaymentStatus(ctx);
 })
 
-// Webhook do Mercado Pago - NÃO ADICIONAR CORS pois é chamado pelo servidor do MP
 router.post('/webhook/mercadopago', async (ctx) => {
   const controller = new PaymentsController()
   return controller.handleWebhook(ctx)
