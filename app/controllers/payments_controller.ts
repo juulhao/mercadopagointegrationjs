@@ -416,4 +416,42 @@ export default class PaymentsController {
         // TODO: Implementar lógica para pontos
     }
 
+        /**
+     * Consulta pagamentos do Mercado Pago por external_reference
+     * GET /payment/external/:external_reference
+     */
+    public async getPaymentsByExternalReference(ctx: HttpContext) {
+        try {
+            const { external_reference } = ctx.params;
+            console.log(`🔍 Consultando pagamentos por external_reference: ${external_reference}`);
+
+            const url = `https://api.mercadopago.com/v1/payments/search?external_reference=${external_reference}`;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${env.get('MP_ACCESS_TOKEN')?.toString()!}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            if (!response.ok) {
+                console.error(`❌ Erro na API: ${response.status} ${response.statusText}`);
+                return ctx.response.status(500).json({ error: 'Erro ao consultar pagamentos' });
+            }
+            const data = await response.json();
+            // data.results é um array de pagamentos
+            return ctx.response.json({
+                external_reference,
+                total: data.paging?.total || 0,
+                status: data.results.map((payment: any) => ({
+                    productName: payment.additional_info?.items?.[0]?.title || 'N/A',
+                    id: payment.id,
+                    status: payment.status,
+                }))
+            });
+        } catch (error: any) {
+            console.error('❌ Erro ao consultar pagamentos por external_reference:', error);
+            return ctx.response.status(500).json({ error: 'Erro ao consultar pagamentos' });
+        }
+    }
+
 }

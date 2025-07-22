@@ -35,17 +35,10 @@ router.post('/payment', async (ctx) => {
   return controller.directToMercadoLivreCheckoutPayments(ctx);
 })
 
-router.get('/payment/:id', async (ctx) => {
+router.get('/payment/external/:external_reference', async (ctx) => {
   addCorsHeaders(ctx)
   const controller = new PaymentsController()
-  return controller.getPayment(ctx);
-})
-
-// Endpoint para consultar status do pagamento por external_reference
-router.get('/payment-status/:external_reference', async (ctx) => {
-  addCorsHeaders(ctx)
-  const controller = new PaymentsController()
-  return controller.getPaymentStatus(ctx);
+  return controller.getPaymentsByExternalReference(ctx);
 })
 
 router.post('/webhook/mercadopago', async (ctx) => {
