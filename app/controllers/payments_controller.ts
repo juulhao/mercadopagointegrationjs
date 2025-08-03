@@ -39,18 +39,29 @@ export default class PaymentsController {
             const body = await ctx.request.body();
             console.log('Body received for payment:', body);
 
-            const preferenceBody = {
+            // Adiciona campos para Checkout Pro
+            const preferenceBody: any = {
                 items: body.items,
                 payer: body.payer,
                 external_reference: body.external_reference,
-                shipments: {
+                shipments: body.shipping_cost ? {
                     cost: body.shipping_cost,
-                    mode: 'shipping_cost',
-                },
+                    mode: 'not_specified',
+                } : undefined,
+                back_urls: body.back_urls,
+                auto_return: body.auto_return || "approved",
+                notification_url: body.notification_url || undefined,
+                payment_methods: body.payment_methods || undefined
             };
+
+            // Remove campos undefined
+            Object.keys(preferenceBody).forEach(key => {
+                if (preferenceBody[key] === undefined) delete preferenceBody[key];
+            });
 
             const result = await preference.create({ body: preferenceBody });
             ctx.response.status(201);
+            console.log('Payment preference created successfully:', result);
 
             return ctx.response.json({
                 id: result.id,
@@ -438,7 +449,7 @@ export default class PaymentsController {
                 return ctx.response.status(500).json({ error: 'Erro ao consultar pagamentos' });
             }
             const data = await response.json();
-            // data.results é um array de pagamentos
+            console.log("Payments Result:", data);
             return ctx.response.json({
                 external_reference,
                 total: data.paging?.total || 0,
@@ -451,6 +462,34 @@ export default class PaymentsController {
         } catch (error: any) {
             console.error('❌ Erro ao consultar pagamentos por external_reference:', error);
             return ctx.response.status(500).json({ error: 'Erro ao consultar pagamentos' });
+        }
+    }
+
+    async refreshPaymentStatus(ctx: HttpContext) {
+        const { external_reference } = ctx.params;
+        console.log(`🔄 Atualizando status do pagamento: ${external_reference}`);
+
+        try {
+            const url = `https://api.mercadopago.com/v1/payments/${external_reference}`;
+            const response = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${env.get('MP_ACCESS_TOKEN')?.toString()!}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                console.error(`❌ Erro na API: ${response.status} ${response.statusText}`);
+                return ctx.response.status(500).json({ error: 'Erro ao atualizar status do pagamento' });
+            }
+
+            const data = await response.json();
+            console.log("Payment Refresh Result:", data);
+            return ctx.response.json(data);
+        } catch (error: any) {
+            console.error('❌ Erro ao atualizar status do pagamento:', error);
+            return ctx.response.status(500).json({ error: 'Erro ao atualizar status do pagamento' });
         }
     }
 

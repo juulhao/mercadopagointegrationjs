@@ -8,6 +8,7 @@
 */
 
 import PaymentsController from '#controllers/payments_controller'
+import CheckoutProController from '#controllers/checkout_pro_controller'
 import router from '@adonisjs/core/services/router'
 import { HttpContext } from '@adonisjs/core/http'
 
@@ -41,8 +42,57 @@ router.get('/payment/external/:external_reference', async (ctx) => {
   return controller.getPaymentsByExternalReference(ctx);
 })
 
-router.post('/webhook/mercadopago', async (ctx) => {
+// Rota de busca por external reference (como mencionado na documentação)
+router.get('/mercadopago/external-ref/:external_reference', async (ctx) => {
+  addCorsHeaders(ctx)
   const controller = new PaymentsController()
-  return controller.handleWebhook(ctx)
+  return controller.getPaymentsByExternalReference(ctx);
 })
+
+// === ROTAS CHECKOUT PRO ===
+// Criar preferência para Checkout Pro
+router.post('/checkout-pro/create', async (ctx) => {
+  addCorsHeaders(ctx)
+  const controller = new CheckoutProController()
+  return controller.createPreference(ctx);
+})
+
+// Páginas de redirecionamento após pagamento
+router.get('/checkout-pro/success', async (ctx) => {
+  addCorsHeaders(ctx)
+  const controller = new CheckoutProController()
+  return controller.success(ctx);
+})
+
+router.get('/checkout-pro/failure', async (ctx) => {
+  addCorsHeaders(ctx)
+  const controller = new CheckoutProController()
+  return controller.failure(ctx);
+})
+
+router.get('/checkout-pro/pending', async (ctx) => {
+  addCorsHeaders(ctx)
+  const controller = new CheckoutProController()
+  return controller.pending(ctx);
+})
+
+// Webhook específico para Checkout Pro (opcional)
+router.post('/checkout-pro/webhook', async (ctx) => {
+  addCorsHeaders(ctx)
+  const controller = new CheckoutProController()
+  return controller.webhook(ctx);
+})
+
+// Webhook geral do Mercado Pago
+router.post('/webhook/mercadopago', async (ctx) => {
+  addCorsHeaders(ctx)
+  const controller = new PaymentsController()
+  return controller.handleWebhook(ctx);
+})
+
+router.put('/payment/external/:external_reference', async (ctx) => {
+  addCorsHeaders(ctx) 
+  const controller = new PaymentsController()
+  return controller.refreshPaymentStatus(ctx);
+});
 
