@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout Pro - Mercado Pago</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group { 
+            margin-bottom: 15px; 
+        }
+        label { 
+            display: block; 
+            margin-bottom: 5px; 
+            font-weight: bold; 
+            color: #333;
+        }
+        input, textarea { 
+            width: 100%; 
+            padding: 10px; 
+            border: 1px solid #ddd; 
+            border-radius: 5px; 
+            font-size: 14px;
+        }
+        button { 
+            background: #009ee3; 
+            color: white; 
+            padding: 12px 25px; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-size: 16px;
+            font-weight: bold;
+        }
+        button:hover { 
+            background: #0080b8; 
+        }
+        .status { 
+            margin-top: 20px; 
+            padding: 15px; 
+            border-radius: 5px; 
+        }
+        .success { 
+            background: #d4edda; 
+            color: #155724; 
+            border: 1px solid #c3e6cb; 
+        }
+        .error { 
+            background: #f8d7da; 
+            color: #721c24; 
+            border: 1px solid #f5c6cb; 
+        }
+        .info { 
+            background: #d1ecf1; 
+            color: #0c5460; 
+            border: 1px solid #bee5eb; 
+        }
+        .product-item {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #e9ecef;
+        }
+        .btn-secondary {
+            background: #6c757d;
+        }
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        .urls-config {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border: 1px solid #ffeaa7;
+        }
+        .total {
+            font-size: 18px;
+            font-weight: bold;
+            color: #009ee3;
+            text-align: right;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛒 Checkout Pro - Mercado Pago</h1>
+        
+        <div class="status info">
+            <strong>ℹ️ Como funciona o Checkout Pro:</strong><br>
+            1. Preencha os dados do produto e comprador<br>
+            2. Clique em "Ir para Checkout"<br>
+            3. Você será redirecionado para o site do Mercado Pago<br>
+            4. Após o pagamento, será redirecionado de volta para este site
+        </div>
+
+        <form id="checkout-form">
+            <!-- Informações do Produto -->
+            <h3>📦 Produto</h3>
+            <div class="product-item">
+                <div class="form-group">
+                    <label>Nome do Produto:</label>
+                    <input type="text" id="productTitle" value="MEMBRANA P/ ELETROLUX MEF41" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Quantidade:</label>
+                    <input type="number" id="productQuantity" value="1" min="1" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Preço Unitário (R$):</label>
+                    <input type="number" id="productPrice" value="30" step="0.01" min="0.01" required>
+                </div>
+            </div>
+
+            <!-- Frete -->
+            <h3>🚚 Frete</h3>
+            <div class="form-group">
+                <label>Valor do Frete (R$):</label>
+                <input type="number" id="shippingCost" value="15.50" step="0.01" min="0">
+            </div>
+
+            <!-- Informações do Comprador -->
+            <h3>👤 Comprador</h3>
+            <div class="form-group">
+                <label>Email:</label>
+                <input type="email" id="payerEmail" value="comprador-teste@example.com" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Nome:</label>
+                <input type="text" id="payerName" value="João" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Sobrenome:</label>
+                <input type="text" id="payerSurname" value="Silva">
+            </div>
+
+            <!-- Referência Externa -->
+            <h3>🔗 Pedido</h3>
+            <div class="form-group">
+                <label>Referência Externa (ID do Pedido):</label>
+                <input type="text" id="externalReference" value="PEDIDO-2024-001" required>
+            </div>
+
+            <!-- URLs de Redirecionamento -->
+            <div class="urls-config">
+                <h3>🔄 URLs de Redirecionamento</h3>
+                <div class="status info">
+                    <strong>⚠️ IMPORTANTE:</strong><br>
+                    • URLs localhost NÃO funcionam com auto_return<br>
+                    • Use ngrok ou URLs HTTPS públicas para auto_return<br>
+                    • Para desenvolvimento local, o auto_return será automaticamente desabilitado
+                </div>
+                <div class="form-group">
+                    <label>URL de Sucesso:</label>
+                    <input type="url" id="successUrl" value="http://localhost:3333/checkout-pro/success">
+                </div>
+                <div class="form-group">
+                    <label>URL de Erro:</label>
+                    <input type="url" id="failureUrl" value="http://localhost:3333/checkout-pro/failure">
+                </div>
+                <div class="form-group">
+                    <label>URL de Pendente:</label>
+                    <input type="url" id="pendingUrl" value="http://localhost:3333/checkout-pro/pending">
+                </div>
+                <div class="form-group">
+                    <label>URL de Webhook:</label>
+                    <input type="url" id="webhookUrl" value="http://localhost:3333/webhook/mercadopago">
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="useNgrok"> 
+                        Usar URLs ngrok (necessário para auto_return)
+                    </label>
+                </div>
+                <div class="form-group" id="ngrokUrl" style="display: none;">
+                    <label>URL ngrok (ex: https://abc123.ngrok.io):</label>
+                    <input type="url" id="ngrokBase" placeholder="https://your-app.ngrok.io">
+                </div>
+            </div>
+
+            <div class="total" id="totalAmount">
+                Total: R$ 45,50
+            </div>
+
+            <button type="submit">🛒 Ir para Checkout do Mercado Pago</button>
+            <button type="button" onclick="testConnection()" class="btn-secondary" style="margin-left: 10px;">🔧 Testar Conexão</button>
+        </form>
+
+        <div id="status"></div>
+    </div>
+
+    <script>
+        // Configuração da API
+        const API_BASE_URL = 'http://localhost:3333';
+
+        // Função para exibir status
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        // Atualizar total automaticamente
+        function updateTotal() {
+            const price = parseFloat(document.getElementById('productPrice').value) || 0;
+            const quantity = parseInt(document.getElementById('productQuantity').value) || 1;
+            const shipping = parseFloat(document.getElementById('shippingCost').value) || 0;
+            
+            const total = (price * quantity) + shipping;
+            document.getElementById('totalAmount').textContent = `Total: R$ ${total.toFixed(2).replace('.', ',')}`;
+        }
+
+        // Event listeners para atualizar total
+        document.getElementById('productPrice').addEventListener('input', updateTotal);
+        document.getElementById('productQuantity').addEventListener('input', updateTotal);
+        document.getElementById('shippingCost').addEventListener('input', updateTotal);
+
+        // Event listener para alternar ngrok URLs
+        document.getElementById('useNgrok').addEventListener('change', function() {
+            const ngrokDiv = document.getElementById('ngrokUrl');
+            const useNgrok = this.checked;
+            
+            if (useNgrok) {
+                ngrokDiv.style.display = 'block';
+            } else {
+                ngrokDiv.style.display = 'none';
+                // Voltar para URLs localhost
+                document.getElementById('successUrl').value = 'http://localhost:3333/checkout-pro/success';
+                document.getElementById('failureUrl').value = 'http://localhost:3333/checkout-pro/failure';
+                document.getElementById('pendingUrl').value = 'http://localhost:3333/checkout-pro/pending';
+                document.getElementById('webhookUrl').value = 'http://localhost:3333/webhook/mercadopago';
+            }
+        });
+
+        // Event listener para atualizar URLs quando ngrok URL é inserida
+        document.getElementById('ngrokBase').addEventListener('input', function() {
+            const ngrokBase = this.value.replace(/\/$/, ''); // Remove trailing slash
+            if (ngrokBase && document.getElementById('useNgrok').checked) {
+                document.getElementById('successUrl').value = `${ngrokBase}/checkout-pro/success`;
+                document.getElementById('failureUrl').value = `${ngrokBase}/checkout-pro/failure`;
+                document.getElementById('pendingUrl').value = `${ngrokBase}/checkout-pro/pending`;
+                document.getElementById('webhookUrl').value = `${ngrokBase}/webhook/mercadopago`;
+            }
+        });
+
+        // Função para criar preferência e redirecionar
+        async function createCheckoutPreference() {
+            showStatus('🔄 Criando preferência de pagamento...', 'info');
+            
+            const paymentData = {
+                items: [
+                    {
+                        id: "produto-1",
+                        title: document.getElementById('productTitle').value,
+                        quantity: parseInt(document.getElementById('productQuantity').value),
+                        unit_price: parseFloat(document.getElementById('productPrice').value),
+                        currency_id: "BRL"
+                    }
+                ],
+                payer: {
+                    email: document.getElementById('payerEmail').value,
+                    name: document.getElementById('payerName').value,
+                    surname: document.getElementById('payerSurname').value
+                },
+                external_reference: document.getElementById('externalReference').value,
+                shipping_cost: parseFloat(document.getElementById('shippingCost').value) || 0,
+                back_urls: {
+                    success: document.getElementById('successUrl').value,
+                    failure: document.getElementById('failureUrl').value,
+                    pending: document.getElementById('pendingUrl').value
+                },
+                auto_return: "approved",
+                notification_url: document.getElementById('webhookUrl').value,
+                payment_methods: {
+                    installments: 12,
+                    default_installments: 1
+                }
+            };
+
+            console.log('Dados a serem enviados:', paymentData);
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/checkout-pro/create`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(paymentData)
+                });
+
+                const result = await response.json();
+                console.log('Resposta do servidor:', result);
+
+                if (response.ok && result.success) {
+                    showStatus(`✅ Preferência criada! Redirecionando para o Mercado Pago...`, 'success');
+                    
+                    // Aguardar 2 segundos e redirecionar
+                    setTimeout(() => {
+                        window.location.href = result.checkout_url;
+                    }, 2000);
+                } else {
+                    showStatus(`❌ Erro ao criar preferência: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                console.error('Erro na requisição:', error);
+                showStatus(`❌ Erro na comunicação com o servidor: ${error.message}`, 'error');
+            }
+        }
+
+        // Função para testar conexão
+        async function testConnection() {
+            showStatus('🔄 Testando conexão com o servidor...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/`, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    showStatus('✅ Conectado com o servidor backend!', 'success');
+                } else {
+                    showStatus('⚠️ Servidor backend respondeu, mas com erro', 'error');
+                }
+            } catch (error) {
+                showStatus('❌ Não foi possível conectar com o servidor backend. Certifique-se de que está rodando na porta 3333.', 'error');
+            }
+        }
+
+        // Event listener do formulário
+        document.getElementById('checkout-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await createCheckoutPreference();
+        });
+
+        // Teste de conectividade ao carregar a página
+        window.addEventListener('load', () => {
+            updateTotal();
+            testConnection();
+        });
+    </script>
+</body>
+</html>

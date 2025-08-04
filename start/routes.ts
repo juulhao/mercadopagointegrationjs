@@ -8,6 +8,7 @@
 */
 
 import PaymentsController from '#controllers/payments_controller'
+import CheckoutProController from '#controllers/checkout_pro_controller'
 import router from '@adonisjs/core/services/router'
 import { HttpContext } from '@adonisjs/core/http'
 
@@ -54,17 +55,17 @@ router.post('/payment', async (ctx) => {
   return controller.directToMercadoLivreCheckoutPayments(ctx);
 })
 
-router.get('/payment/:id', async (ctx) => {
+router.get('/payment/external/:external_reference', async (ctx) => {
   addCorsHeaders(ctx)
   const controller = new PaymentsController()
-  return controller.getPayment(ctx);
+  return controller.getPaymentsByExternalReference(ctx);
 })
 
-// Endpoint para consultar status do pagamento por external_reference
-router.get('/payment-status/:external_reference', async (ctx) => {
+// Rota de busca por external reference (como mencionado na documentação)
+router.get('/mercadopago/external-ref/:external_reference', async (ctx) => {
   addCorsHeaders(ctx)
   const controller = new PaymentsController()
-  return controller.getPaymentStatus(ctx);
+  return controller.getPaymentsByExternalReference(ctx);
 })
 
 // === PÁGINAS DE RESULTADO ===
@@ -150,7 +151,14 @@ router.get('/pending', async (ctx) => {
 // === WEBHOOK (SEM CORS PARA RECEBER DO MERCADO PAGO) ===
 
 router.post('/webhook/mercadopago', async (ctx) => {
+  addCorsHeaders(ctx)
   const controller = new PaymentsController()
-  return controller.handleWebhook(ctx)
+  return controller.handleWebhook(ctx);
 })
+
+router.put('/payment/external/:external_reference', async (ctx) => {
+  addCorsHeaders(ctx) 
+  const controller = new PaymentsController()
+  return controller.refreshPaymentStatus(ctx);
+});
 

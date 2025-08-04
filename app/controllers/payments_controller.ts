@@ -59,7 +59,8 @@ export default class PaymentsController {
             const body = await ctx.request.body();
             console.log('Body received for payment:', body);
 
-            const preferenceBody = {
+            // Adiciona campos para Checkout Pro
+            const preferenceBody: any = {
                 items: body.items,
                 payer: body.payer,
                 external_reference: body.external_reference,
@@ -78,6 +79,11 @@ export default class PaymentsController {
                 },
                 auto_return: "approved"
             };
+
+            // Remove campos undefined
+            Object.keys(preferenceBody).forEach(key => {
+                if (preferenceBody[key] === undefined) delete preferenceBody[key];
+            });
 
             const result = await preference.create({ body: preferenceBody });
             ctx.response.status(201);
@@ -642,6 +648,72 @@ export default class PaymentsController {
     private async handlePointIntegrationNotification(body: any, _ctx: HttpContext) {
         console.log('🎯 Notificação de integração de pontos recebida:', body);
         // TODO: Implementar lógica para pontos
+    }
+
+        /**
+     * Consulta pagamentos do Mercado Pago por external_reference
+     * GET /payment/external/:external_reference
+     */
+    public async getPaymentsByExternalReference(ctx: HttpContext) {
+        try {
+            const { external_reference } = ctx.params;
+            console.log(`🔍 Consultando pagamentos por external_reference: ${external_reference}`);
+
+            const url = `https://api.mercadopago.com/v1/payments/search?external_reference=${external_reference}`;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${env.get('MP_ACCESS_TOKEN')?.toString()!}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            if (!response.ok) {
+                console.error(`❌ Erro na API: ${response.status} ${response.statusText}`);
+                return ctx.response.status(500).json({ error: 'Erro ao consultar pagamentos' });
+            }
+            const data = await response.json();
+            console.log("Payments Result:", data);
+            return ctx.response.json({
+                external_reference,
+                total: data.paging?.total || 0,
+                status: data.results.map((payment: any) => ({
+                    productName: payment.additional_info?.items?.[0]?.title || 'N/A',
+                    id: payment.id,
+                    status: payment.status,
+                }))
+            });
+        } catch (error: any) {
+            console.error('❌ Erro ao consultar pagamentos por external_reference:', error);
+            return ctx.response.status(500).json({ error: 'Erro ao consultar pagamentos' });
+        }
+    }
+
+    async refreshPaymentStatus(ctx: HttpContext) {
+        const { external_reference } = ctx.params;
+        console.log(`🔄 Atualizando status do pagamento: ${external_reference}`);
+
+        try {
+            const url = `https://api.mercadopago.com/v1/payments/${external_reference}`;
+            const response = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${env.get('MP_ACCESS_TOKEN')?.toString()!}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                console.error(`❌ Erro na API: ${response.status} ${response.statusText}`);
+                return ctx.response.status(500).json({ error: 'Erro ao atualizar status do pagamento' });
+            }
+
+            const data = await response.json();
+            console.log("Payment Refresh Result:", data);
+            return ctx.response.json(data);
+        } catch (error: any) {
+            console.error('❌ Erro ao atualizar status do pagamento:', error);
+            return ctx.response.status(500).json({ error: 'Erro ao atualizar status do pagamento' });
+        }
     }
 
 }
