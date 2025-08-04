@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PIX Teste Direto - Payment Methods</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .btn {
+            background: #00a650;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin: 10px 0;
+            width: 100%;
+        }
+        .logs {
+            background: #1e1e1e;
+            color: #00ff00;
+            font-family: monospace;
+            padding: 15px;
+            border-radius: 5px;
+            height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        #paymentMethodsContainer {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            min-height: 200px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Teste Métodos de Pagamento</h1>
+        <p>Vamos verificar quais métodos estão disponíveis</p>
+        
+        <button class="btn" onclick="testPaymentMethods()">🔍 Verificar Métodos Disponíveis</button>
+        <button class="btn" onclick="testPixDirect()" style="background: #009ee3;">📱 Teste PIX Direto</button>
+        
+        <div id="paymentMethodsContainer">
+            <p>👆 Clique em "Verificar Métodos" para ver opções disponíveis</p>
+        </div>
+
+        <div class="logs" id="logs">
+            <div>🚀 Sistema iniciado...</div>
+        </div>
+    </div>
+
+    <script src="https://sdk.mercadopago.com/js/v2"></script>
+    <script>
+        function addLog(message) {
+            const logs = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            logs.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        async function testPaymentMethods() {
+            try {
+                addLog('🔍 Verificando métodos de pagamento disponíveis...');
+                
+                // Criar preferência
+                const preference = await fetch('/api/create-preference', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        items: [{
+                            title: 'Teste Métodos',
+                            quantity: 1,
+                            unit_price: 50.00
+                        }],
+                        external_reference: 'METHODS-TEST-' + Date.now(),
+                        payer: {
+                            email: 'test@example.com'
+                        }
+                    })
+                }).then(response => response.json());
+
+                if (!preference.success) {
+                    throw new Error(preference.error);
+                }
+
+                addLog(`✅ Preferência criada: ${preference.preference_id}`);
+                addLog(`🌍 Ambiente: ${preference.environment}`);
+
+                // Inicializar MP
+                const mp = new MercadoPago(preference.public_key, {
+                    locale: 'pt-BR'
+                });
+
+                addLog('📋 Consultando métodos de pagamento...');
+                
+                // Buscar métodos de pagamento disponíveis
+                const paymentMethods = await mp.getPaymentMethods();
+                
+                addLog(`📊 ${paymentMethods.length} métodos encontrados`);
+                
+                const container = document.getElementById('paymentMethodsContainer');
+                container.innerHTML = '<h3>Métodos Disponíveis:</h3>';
+                
+                paymentMethods.forEach(method => {
+                    const div = document.createElement('div');
+                    div.style.cssText = 'padding: 10px; margin: 5px 0; background: #f8f9fa; border-radius: 5px; border-left: 4px solid #007bff;';
+                    div.innerHTML = `
+                        <strong>${method.name}</strong> (${method.id})<br>
+                        <small>Tipo: ${method.payment_type_id} | Status: ${method.status}</small>
+                    `;
+                    container.appendChild(div);
+                    
+                    addLog(`💳 ${method.name} (${method.id}) - Tipo: ${method.payment_type_id}`);
+                    
+                    if (method.id === 'pix') {
+                        addLog('🎉 PIX ENCONTRADO! ✅');
+                    }
+                });
+
+            } catch (error) {
+                addLog(`❌ Erro: ${error.message}`);
+                console.error('Erro:', error);
+            }
+        }
+
+        async function testPixDirect() {
+            try {
+                addLog('📱 Teste PIX direto via API...');
+                
+                // Criar pagamento PIX diretamente
+                const pixPayment = await fetch('/api/process-payment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        transaction_amount: 50.00,
+                        description: 'Teste PIX Direto',
+                        payment_method_id: 'pix',
+                        external_reference: 'PIX-DIRECT-' + Date.now(),
+                        payer: {
+                            email: 'test@example.com'
+                        }
+                    })
+                });
+
+                const result = await pixPayment.json();
+                
+                if (result.success) {
+                    addLog(`✅ PIX criado: ${result.id}`);
+                    addLog(`📊 Status: ${result.status}`);
+                    
+                    if (result.point_of_interaction?.transaction_data?.qr_code_base64) {
+                        addLog('🎉 QR Code PIX gerado!');
+                        
+                        const container = document.getElementById('paymentMethodsContainer');
+                        container.innerHTML = `
+                            <h3>📱 PIX Gerado!</h3>
+                            <div style="text-align: center;">
+                                <img src="data:image/png;base64,${result.point_of_interaction.transaction_data.qr_code_base64}" 
+                                     style="max-width: 200px; border: 2px solid #00a650; border-radius: 10px;">
+                                <br><br>
+                                <button onclick="copyPixCode('${result.point_of_interaction.transaction_data.qr_code}')" 
+                                        style="background: #00a650; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+                                    📋 Copiar Código PIX
+                                </button>
+                            </div>
+                        `;
+                    }
+                } else {
+                    addLog(`❌ Erro PIX: ${result.error}`);
+                }
+
+            } catch (error) {
+                addLog(`❌ Erro PIX: ${error.message}`);
+                console.error('Erro PIX:', error);
+            }
+        }
+
+        function copyPixCode(code) {
+            navigator.clipboard.writeText(code).then(() => {
+                addLog('📋 Código PIX copiado para área de transferência!');
+            }).catch(() => {
+                prompt('Copie o código PIX:', code);
+            });
+        }
+
+        addLog('🚀 Sistema pronto para testes');
+        addLog('💡 Use "Verificar Métodos" para ver se PIX está disponível');
+        addLog('📱 Use "Teste PIX Direto" para criar um PIX via API');
+    </script>
+</body>
+</html>

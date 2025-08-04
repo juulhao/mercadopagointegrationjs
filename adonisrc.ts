@@ -43,7 +43,8 @@ export default defineConfig({
       file: () => import('@adonisjs/core/providers/repl_provider'),
       environment: ['repl', 'test'],
     },
-    () => import('@adonisjs/cors/cors_provider')
+    () => import('@adonisjs/cors/cors_provider'),
+    () => import('@adonisjs/static/static_provider')
   ],
 
   /*
@@ -80,4 +81,8 @@ export default defineConfig({
     ],
     forceExit: false,
   },
+  metaFiles: [{
+    pattern: 'public/**',
+    reloadServer: false,
+  }]
 })

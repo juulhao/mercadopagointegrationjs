@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pagamento - Payment Brick</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .content {
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        .product-info {
+            flex: 1;
+            min-width: 300px;
+            padding: 30px;
+            background: #f8f9fa;
+        }
+
+        .payment-section {
+            flex: 1;
+            min-width: 400px;
+            padding: 30px;
+        }
+
+        .product-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .product-image {
+            width: 100%;
+            height: 200px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .product-title {
+            font-size: 1.5rem;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .product-description {
+            color: #666;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+
+        .price {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #00a650;
+            text-align: center;
+            padding: 15px;
+            background: #f0f8f0;
+            border-radius: 8px;
+        }
+
+        .payment-title {
+            font-size: 1.8rem;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        #paymentBrick_container {
+            margin-bottom: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-weight: 500;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .payment-methods {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .payment-method {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .payment-method.active {
+            border-color: #00a650;
+            color: #00a650;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                flex-direction: column;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .product-info, .payment-section {
+                min-width: unset;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛍️ Loja Eletrônica</h1>
+            <p>Pagamento seguro com PIX e Cartão</p>
+        </div>
+        
+        <div class="content">
+            <div class="product-info">
+                <div class="product-card">
+                    <div class="product-image">
+                        📱
+                    </div>
+                    <div class="product-title">Smartphone Premium</div>
+                    <div class="product-description">
+                        Smartphone de última geração com câmera de alta resolução, 
+                        processador rápido e bateria de longa duração. Ideal para 
+                        trabalho e entretenimento.
+                    </div>
+                    <div class="price">R$ 1.299,90</div>
+                </div>
+                
+                <div class="payment-methods">
+                    <div class="payment-method active">
+                        🏦 PIX
+                    </div>
+                    <div class="payment-method active">
+                        💳 Cartão
+                    </div>
+                    <div class="payment-method active">
+                        🔒 Seguro
+                    </div>
+                </div>
+            </div>
+            
+            <div class="payment-section">
+                <h2 class="payment-title">Finalizar Pagamento</h2>
+                
+                <div id="statusContainer"></div>
+                
+                <div id="paymentBrick_container">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <div>Carregando formas de pagamento...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mercado Pago SDK -->
+    <script src="https://sdk.mercadopago.com/js/v2"></script>
+    
+    <script>
+        // Configuração do produto
+        const product = {
+            title: "Smartphone Premium",
+            description: "Smartphone de última geração",
+            price: 1299.90,
+            quantity: 1
+        };
+
+        // Configuração do Mercado Pago
+        let mp;
+        let bricksBuilder;
+        let paymentBrickController;
+
+        // Função para mostrar status
+        function showStatus(message, type = 'info') {
+            const container = document.getElementById('statusContainer');
+            container.innerHTML = `
+                <div class="alert alert-${type}">
+                    ${message}
+                </div>
+            `;
+        }
+
+        // Função para gerar referência única
+        function generateExternalReference() {
+            return 'ORDER-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        }
+
+        // Inicializar Payment Brick
+        async function initializePaymentBrick() {
+            try {
+                showStatus('🔄 Criando preferência de pagamento...', 'info');
+
+                // 1. Criar preferência no backend
+                const preference = await createPaymentPreference();
+                
+                if (!preference.success) {
+                    throw new Error(preference.error || 'Erro ao criar preferência');
+                }
+
+                showStatus('✅ Preferência criada! Carregando formas de pagamento...', 'success');
+
+                // 2. Inicializar Mercado Pago SDK
+                mp = new MercadoPago(preference.public_key, {
+                    locale: 'pt-BR'
+                });
+
+                // 3. Criar Bricks Builder
+                bricksBuilder = mp.bricks();
+
+                // 4. Configurar Payment Brick
+                const renderPaymentBrick = async () => {
+                    if (paymentBrickController) {
+                        paymentBrickController.unmount();
+                    }
+
+                    paymentBrickController = await bricksBuilder.create('payment', 'paymentBrick_container', {
+                        initialization: {
+                            amount: product.price,
+                            preferenceId: preference.preference_id,
+                        },
+                        customization: {
+                            paymentMethods: {
+                                ticket: "all",
+                                creditCard: "all",
+                                debitCard: "all",
+                                mercadoPago: "all"
+                            },
+                            visual: {
+                                style: {
+                                    theme: 'default'
+                                }
+                            }
+                        },
+                        callbacks: {
+                            onReady: () => {
+                                console.log('✅ Payment Brick está pronto!');
+                                showStatus('💳 Escolha sua forma de pagamento:', 'success');
+                            },
+                            onSubmit: async (formData) => {
+                                console.log('📤 Processando pagamento:', formData);
+                                return await processPayment(formData, preference.preference_id);
+                            },
+                            onError: (error) => {
+                                console.error('❌ Erro no Payment Brick:', error);
+                                showStatus('❌ Erro no pagamento: ' + error.message, 'error');
+                            }
+                        }
+                    });
+                };
+
+                await renderPaymentBrick();
+
+            } catch (error) {
+                console.error('❌ Erro ao inicializar Payment Brick:', error);
+                showStatus('❌ Erro ao carregar pagamento: ' + error.message, 'error');
+                
+                // Mostrar botão para tentar novamente
+                document.getElementById('paymentBrick_container').innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <p style="margin-bottom: 20px;">Erro ao carregar o pagamento</p>
+                        <button onclick="initializePaymentBrick()" 
+                                style="background: #667eea; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer;">
+                            🔄 Tentar Novamente
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        // Criar preferência no backend
+        async function createPaymentPreference() {
+            try {
+                const externalReference = generateExternalReference();
+                
+                const response = await fetch('/api/create-preference', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        items: [{
+                            title: product.title,
+                            description: product.description,
+                            quantity: product.quantity,
+                            unit_price: product.price
+                        }],
+                        external_reference: externalReference,
+                        payer: {
+                            email: 'test@example.com'
+                        }
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Erro na requisição');
+                }
+
+                return {
+                    success: true,
+                    preference_id: data.preference_id,
+                    public_key: data.public_key,
+                    external_reference: externalReference
+                };
+
+            } catch (error) {
+                console.error('❌ Erro ao criar preferência:', error);
+                return {
+                    success: false,
+                    error: error.message
+                };
+            }
+        }
+
+        // Processar pagamento
+        async function processPayment(formData, preferenceId) {
+            try {
+                showStatus('🔄 Processando pagamento...', 'info');
+
+                const response = await fetch('/api/process-payment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        ...formData,
+                        preference_id: preferenceId
+                    })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || 'Erro no processamento');
+                }
+
+                // Tratar resultado baseado no status
+                switch (result.status) {
+                    case 'approved':
+                        showStatus('🎉 Pagamento aprovado com sucesso!', 'success');
+                        setTimeout(() => {
+                            window.location.href = '/success?payment_id=' + result.id;
+                        }, 2000);
+                        break;
+                        
+                    case 'pending':
+                        if (result.payment_method_id === 'pix') {
+                            showStatus('📱 PIX gerado! Use o QR Code ou código para pagar.', 'info');
+                            // Mostrar QR Code se disponível
+                            if (result.point_of_interaction?.transaction_data?.qr_code_base64) {
+                                showPixQRCode(result);
+                            }
+                        } else {
+                            showStatus('⏳ Pagamento pendente. Aguardando confirmação.', 'info');
+                        }
+                        break;
+                        
+                    case 'rejected':
+                        showStatus('❌ Pagamento rejeitado: ' + result.status_detail, 'error');
+                        break;
+                        
+                    default:
+                        showStatus('ℹ️ Status: ' + result.status, 'info');
+                }
+
+                return result;
+
+            } catch (error) {
+                console.error('❌ Erro ao processar pagamento:', error);
+                showStatus('❌ Erro no pagamento: ' + error.message, 'error');
+                throw error;
+            }
+        }
+
+        // Mostrar QR Code PIX
+        function showPixQRCode(paymentResult) {
+            const qrCodeBase64 = paymentResult.point_of_interaction?.transaction_data?.qr_code_base64;
+            const qrCodeText = paymentResult.point_of_interaction?.transaction_data?.qr_code;
+            
+            if (qrCodeBase64) {
+                const container = document.getElementById('statusContainer');
+                container.innerHTML += `
+                    <div class="alert alert-info" style="text-align: center;">
+                        <h3>💰 PIX Gerado!</h3>
+                        <p>Escaneie o QR Code ou copie o código PIX:</p>
+                        <img src="data:image/png;base64,${qrCodeBase64}" 
+                             style="max-width: 200px; margin: 15px 0;" 
+                             alt="QR Code PIX">
+                        <br>
+                        <button onclick="copyPixCode('${qrCodeText}')" 
+                                style="background: #00a650; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 10px;">
+                            📋 Copiar Código PIX
+                        </button>
+                        <div style="margin-top: 15px;">
+                            <small>⏰ Pagamento expira em 30 minutos</small>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Copiar código PIX
+        function copyPixCode(code) {
+            navigator.clipboard.writeText(code).then(() => {
+                showStatus('✅ Código PIX copiado!', 'success');
+            }).catch(() => {
+                prompt('Copie o código PIX:', code);
+            });
+        }
+
+        // Inicializar quando a página carregar
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Inicializando Payment Brick...');
+            initializePaymentBrick();
+        });
+    </script>
+</body>
+</html>

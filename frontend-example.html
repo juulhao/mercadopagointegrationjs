@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exemplo Frontend - Mercado Pago Integration</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .container { margin: 20px 0; }
+        .button { background: #009ee3; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+        .button:hover { background: #007bb5; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .warning { background: #fff3cd; color: #856404; }
+        pre { background: #f8f9fa; padding: 15px; border-radius: 5px; overflow-x: auto; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <h1>🛒 Exemplo Frontend - Integração Mercado Pago</h1>
+
+    <div class="container">
+        <h2>📡 Configuração da API</h2>
+        <label>URL da API:</label>
+        <input type="text" id="apiUrl" value="https://7912abc4a211.ngrok-free.app" style="width: 100%; padding: 8px;">
+    </div>
+
+    <div class="container">
+        <h2>🛍️ 1. Criar Preferência de Pagamento</h2>
+        <button class="button" onclick="createPayment()">Criar Pagamento</button>
+        <div id="paymentResult" class="hidden"></div>
+    </div>
+
+    <div class="container">
+        <h2>💳 2. Processar Pagamento</h2>
+        <p>Após criar a preferência, você será redirecionado para o checkout do Mercado Pago.</p>
+        <div class="status info">
+            <strong>Dados de Teste (Sandbox):</strong><br>
+            Cartão: 4509 9535 6623 3704<br>
+            CVV: 123<br>
+            Validade: 11/25<br>
+            CPF: 12345678909
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>🔔 3. Consultar Status do Pagamento</h2>
+        <input type="text" id="externalRef" placeholder="Digite o external_reference" style="width: 300px; padding: 8px;">
+        <button class="button" onclick="checkPaymentStatus()">Consultar Status</button>
+        <div id="statusResult" class="hidden"></div>
+    </div>
+
+    <div class="container">
+        <h2>🎯 4. Simular Webhook (Para Teste)</h2>
+        <button class="button" onclick="simulateWebhook()">Simular Webhook</button>
+        <div id="webhookResult" class="hidden"></div>
+    </div>
+
+    <div class="container">
+        <h2>📊 Logs</h2>
+        <div id="logs"></div>
+    </div>
+
+    <script>
+        // Função para adicionar logs
+        function addLog(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            const logClass = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info';
+            logs.innerHTML += `<div class="status ${logClass}"><strong>[${timestamp}]</strong> ${message}</div>`;
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        // 1. Criar preferência de pagamento
+        async function createPayment() {
+            try {
+                addLog('🔄 Criando preferência de pagamento...');
+                
+                const apiUrl = document.getElementById('apiUrl').value;
+                const externalReference = `pedido_${Date.now()}`;
+                
+                const paymentData = {
+                    items: [
+                        {
+                            id: "produto_001",
+                            title: "Produto de Teste",
+                            quantity: 1,
+                            unit_price: 25.90,
+                            currency_id: "BRL"
+                        }
+                    ],
+                    payer: {
+                        email: "cliente@teste.com",
+                        name: "João",
+                        surname: "Silva",
+                        identification: {
+                            type: "CPF",
+                            number: "12345678909"
+                        }
+                    },
+                    external_reference: externalReference,
+                    shipping_cost: 5.00
+                };
+
+                const response = await fetch(`${apiUrl}/payment`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'ngrok-skip-browser-warning': 'true'
+                    },
+                    body: JSON.stringify(paymentData)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                
+                addLog('✅ Preferência criada com sucesso!', 'success');
+                addLog(`📝 External Reference: ${result.external_reference}`);
+                addLog(`🏪 Ambiente: ${result.environment}`);
+                
+                // Mostrar resultado
+                const paymentDiv = document.getElementById('paymentResult');
+                paymentDiv.className = 'status success';
+                paymentDiv.innerHTML = `
+                    <h3>✅ Pagamento Criado!</h3>
+                    <p><strong>ID:</strong> ${result.id}</p>
+                    <p><strong>External Reference:</strong> ${result.external_reference}</p>
+                    <p><strong>Ambiente:</strong> ${result.environment}</p>
+                    <p><strong>Mensagem:</strong> ${result.message}</p>
+                    <div style="margin-top: 15px;">
+                        <a href="${result.checkout_url}" target="_blank" class="button">
+                            🛒 Ir para Checkout
+                        </a>
+                    </div>
+                `;
+                paymentDiv.classList.remove('hidden');
+
+                // Salvar external_reference para consulta
+                document.getElementById('externalRef').value = result.external_reference;
+
+            } catch (error) {
+                addLog(`❌ Erro: ${error.message}`, 'error');
+                console.error('Erro ao criar pagamento:', error);
+            }
+        }
+
+        // 2. Consultar status do pagamento
+        async function checkPaymentStatus() {
+            try {
+                const externalRef = document.getElementById('externalRef').value;
+                if (!externalRef) {
+                    addLog('⚠️ Digite o external_reference', 'warning');
+                    return;
+                }
+
+                addLog(`🔍 Consultando status do pedido: ${externalRef}`);
+                
+                const apiUrl = document.getElementById('apiUrl').value;
+                const response = await fetch(`${apiUrl}/payment-status/${externalRef}`, {
+                    headers: {
+                        'ngrok-skip-browser-warning': 'true'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                
+                addLog(`📊 Status: ${result.payment_status}`, 'info');
+                
+                // Mostrar resultado
+                const statusDiv = document.getElementById('statusResult');
+                statusDiv.className = 'status info';
+                statusDiv.innerHTML = `
+                    <h3>📊 Status do Pagamento</h3>
+                    <p><strong>External Reference:</strong> ${result.external_reference}</p>
+                    <p><strong>Status:</strong> ${result.payment_status}</p>
+                    <p><strong>Payment ID:</strong> ${result.payment_id || 'N/A'}</p>
+                    <p><strong>Última Atualização:</strong> ${new Date(result.last_updated).toLocaleString()}</p>
+                `;
+                statusDiv.classList.remove('hidden');
+
+            } catch (error) {
+                addLog(`❌ Erro: ${error.message}`, 'error');
+                console.error('Erro ao consultar status:', error);
+            }
+        }
+
+        // 3. Simular webhook (apenas para teste)
+        async function simulateWebhook() {
+            try {
+                addLog('🎯 Simulando webhook do Mercado Pago...');
+                
+                const apiUrl = document.getElementById('apiUrl').value;
+                const webhookData = {
+                    type: "payment",
+                    data: {
+                        id: "123456789"
+                    },
+                    action: "payment.created",
+                    date_created: new Date().toISOString(),
+                    id: 12345,
+                    live_mode: false,
+                    user_id: "813456204"
+                };
+
+                const response = await fetch(`${apiUrl}/webhook/mercadopago`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'User-Agent': 'MercadoPago',
+                        'ngrok-skip-browser-warning': 'true'
+                    },
+                    body: JSON.stringify(webhookData)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                
+                addLog('✅ Webhook simulado com sucesso!', 'success');
+                
+                // Mostrar resultado
+                const webhookDiv = document.getElementById('webhookResult');
+                webhookDiv.className = 'status success';
+                webhookDiv.innerHTML = `
+                    <h3>🎯 Webhook Processado</h3>
+                    <p><strong>Status:</strong> ${result.status}</p>
+                    <p><strong>Timestamp:</strong> ${result.timestamp}</p>
+                    <p>✅ Verifique os logs do seu servidor para ver o processamento.</p>
+                `;
+                webhookDiv.classList.remove('hidden');
+
+            } catch (error) {
+                addLog(`❌ Erro: ${error.message}`, 'error');
+                console.error('Erro ao simular webhook:', error);
+            }
+        }
+
+        // 4. Polling automático (opcional)
+        function startPolling(externalReference) {
+            const interval = setInterval(async () => {
+                try {
+                    const apiUrl = document.getElementById('apiUrl').value;
+                    const response = await fetch(`${apiUrl}/payment-status/${externalReference}`, {
+                        headers: { 'ngrok-skip-browser-warning': 'true' }
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        if (result.payment_status === 'paid') {
+                            addLog('🎉 Pagamento confirmado via polling!', 'success');
+                            clearInterval(interval);
+                        }
+                    }
+                } catch (error) {
+                    console.log('Erro no polling:', error);
+                }
+            }, 5000); // Verifica a cada 5 segundos
+
+            // Parar polling após 5 minutos
+            setTimeout(() => clearInterval(interval), 300000);
+        }
+
+        // Log inicial
+        addLog('🚀 Frontend inicializado. API configurada para: https://7912abc4a211.ngrok-free.app');
+        addLog('💡 CORS está habilitado - você pode chamar de qualquer origem');
+    </script>
+</body>
+</html>

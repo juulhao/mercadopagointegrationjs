@@ -1,13 +1,33 @@
 import { HttpContext } from "@adonisjs/core/http";
-import { MercadoPagoConfig, Preference } from "mercadopago";
+import { MercadoPagoConfig, Preference, Payment } from "mercadopago";
 import env from '#start/env'
+
 const client = new MercadoPagoConfig({
     accessToken: env.get('MP_ACCESS_TOKEN')?.toString()!,
-    options: { timeout: 5000 }, // Reduzindo timeout para ser mais rápido
+    options: { timeout: 5000 },
 });
+
 const preference = new Preference(client);
+const payment = new Payment(client);
 
 export default class PaymentsController {
+
+    /**
+     * Detecta se está usando credenciais de produção ou teste
+     */
+    private isProductionEnvironment(): boolean {
+        const accessToken = env.get('MP_ACCESS_TOKEN')?.toString() || '';
+        return accessToken.startsWith('APP_USR-');
+    }
+
+    /**
+     * Retorna a URL base correta baseada no ambiente
+     */
+    private getCheckoutUrl(): string {
+        return this.isProductionEnvironment() 
+            ? 'https://www.mercadopago.com.br/checkout/v1/redirect'
+            : 'https://sandbox.mercadopago.com.br/checkout/v1/redirect';
+    }
 
     public async getPayment(ctx: HttpContext) {
         const paymentId = ctx.params.id;
@@ -43,20 +63,49 @@ export default class PaymentsController {
                 items: body.items,
                 payer: body.payer,
                 external_reference: body.external_reference,
-                shipments: {
+                shipments: body.shipping_cost ? {
                     cost: body.shipping_cost,
                     mode: 'shipping_cost',
+                } : undefined,
+                // Configurações específicas para produção
+                notification_url: this.isProductionEnvironment() 
+                    ? body.notification_url || 'https://seudominio.com/webhook/mercadopago'
+                    : undefined,
+                back_urls: {
+                    success: body.back_urls?.success || 'https://example.com/success',
+                    failure: body.back_urls?.failure || 'https://example.com/failure',
+                    pending: body.back_urls?.pending || 'https://example.com/pending'
                 },
+                auto_return: "approved"
             };
 
             const result = await preference.create({ body: preferenceBody });
             ctx.response.status(201);
+            
+            // Log mais detalhado para produção
+            if (this.isProductionEnvironment()) {
+                console.log('🔥 PRODUÇÃO - Preferência criada:', {
+                    id: result.id,
+                    external_reference: result.external_reference,
+                    amount: body.items?.reduce((sum: number, item: any) => sum + (item.unit_price * item.quantity), 0)
+                });
+            } else {
+                console.log('Payment preference created successfully:', result);
+            }
 
+            // Retornar URL correta baseada no ambiente
+            const isProduction = this.isProductionEnvironment();
+            
             return ctx.response.json({
                 id: result.id,
                 init_point: result.init_point,
                 sandbox_init_point: result.sandbox_init_point,
-                external_reference: result.external_reference
+                checkout_url: isProduction ? result.init_point : result.sandbox_init_point,
+                external_reference: result.external_reference,
+                environment: isProduction ? 'production' : 'sandbox',
+                message: isProduction 
+                    ? '🔥 AMBIENTE DE PRODUÇÃO - Use dados reais para pagamento'
+                    : 'Ambiente de TESTE - Use cartão 4509 9535 6623 3704, CVV 123, Validade 11/25'
             });
         } catch (error: any) {
             console.error('=== PAYMENT PREFERENCE ERROR ===');
@@ -67,6 +116,178 @@ export default class PaymentsController {
                 error: error.message || 'Unknown error',
                 details: error.cause || [],
                 apiResponse: error.apiResponse || null
+            });
+        }
+    }
+
+    /**
+     * Cria uma preferência para Payment Brick
+     * Método usado pelo frontend para inicializar o Payment Brick
+     */
+    public async createPreference(ctx: HttpContext) {
+        try {
+            const body = await ctx.request.body();
+            console.log('🎯 Criando preferência para Payment Brick:', body);
+
+            const preferenceBody = {
+                items: body.items,
+                payer: body.payer || {
+                    email: 'test@example.com'
+                },
+                external_reference: body.external_reference,
+                // Habilitar métodos de pagamento específicos
+                payment_methods: {
+                    excluded_payment_methods: [], // Não excluir nenhum método
+                    excluded_payment_types: [],   // Não excluir nenhum tipo
+                    installments: 12              // Permitir parcelamento até 12x
+                },
+                notification_url: this.isProductionEnvironment() 
+                    ? body.notification_url || 'https://seudominio.com/webhook/mercadopago'
+                    : 'https://7912abc4a211.ngrok-free.app/webhook/mercadopago',
+                statement_descriptor: "Loja Eletronica",
+                expires: true,
+                expiration_date_from: new Date().toISOString(),
+                expiration_date_to: new Date(Date.now() + 30 * 60 * 1000).toISOString() // 30 minutos
+            };
+
+            const result = await preference.create({ body: preferenceBody });
+            
+            console.log('✅ Preferência criada para Payment Brick:', {
+                id: result.id,
+                external_reference: result.external_reference,
+                environment: this.isProductionEnvironment() ? 'production' : 'sandbox'
+            });
+
+            return ctx.response.json({
+                success: true,
+                preference_id: result.id,
+                public_key: env.get('MP_PUBLIC_KEY')?.toString(),
+                environment: this.isProductionEnvironment() ? 'production' : 'sandbox'
+            });
+
+        } catch (error: any) {
+            console.error('❌ Erro ao criar preferência para Payment Brick:', error);
+            ctx.response.status(error.status || 500);
+            return ctx.response.json({
+                success: false,
+                error: error.message || 'Erro ao criar preferência',
+                details: error.cause || []
+            });
+        }
+    }
+
+    /**
+     * Processa pagamento via Payment Brick
+     * Recebe os dados do formulário do Payment Brick e cria o pagamento
+     */
+    public async processPayment(ctx: HttpContext) {
+        try {
+            const body = await ctx.request.body();
+            console.log('💳 Processando pagamento via Payment Brick:', JSON.stringify(body, null, 2));
+
+            // Preparar dados do pagamento baseado no tipo
+            let paymentData: any = {
+                transaction_amount: body.transaction_amount,
+                description: body.description || 'Pagamento via Payment Brick',
+                external_reference: body.external_reference,
+                payer: {
+                    email: body.payer?.email || body.formData?.payer?.email || 'test@example.com'
+                }
+            };
+
+            // Extrair payment_method_id do formData se disponível
+            const paymentMethodId = body.payment_method_id || body.formData?.payment_method_id;
+            
+            if (paymentMethodId) {
+                paymentData.payment_method_id = paymentMethodId;
+                
+                // Para PIX
+                if (paymentMethodId === 'pix') {
+                    paymentData.payment_method_id = 'pix';
+                    console.log('📱 Pagamento PIX detectado!');
+                }
+                
+                // Para cartão de crédito/débito
+                if (body.token || body.formData?.token) {
+                    paymentData.token = body.token || body.formData.token;
+                }
+                
+                // Informações do pagador para cartão
+                if (body.payer || body.formData?.payer) {
+                    const payerData = body.payer || body.formData.payer;
+                    paymentData.payer = {
+                        ...paymentData.payer,
+                        identification: payerData.identification,
+                        first_name: payerData.first_name,
+                        last_name: payerData.last_name
+                    };
+                }
+                
+                // Parcelamento
+                if (body.installments || body.formData?.installments) {
+                    paymentData.installments = body.installments || body.formData.installments;
+                }
+                
+                // Informações do emissor
+                if (body.issuer_id || body.formData?.issuer_id) {
+                    paymentData.issuer_id = body.issuer_id || body.formData.issuer_id;
+                }
+            } else {
+                throw new Error('payment_method_id é obrigatório');
+            }
+
+            console.log('📤 Enviando dados para Mercado Pago:', JSON.stringify(paymentData, null, 2));
+
+            // Criar pagamento
+            const result = await payment.create({ body: paymentData });
+            
+            console.log('📨 Resposta do Mercado Pago:', JSON.stringify(result, null, 2));
+
+            // Log específico por status
+            switch (result.status) {
+                case 'approved':
+                    console.log('✅ Pagamento aprovado imediatamente!');
+                    break;
+                case 'pending':
+                    if (result.payment_method_id === 'pix') {
+                        console.log('📱 PIX gerado com sucesso!');
+                    } else {
+                        console.log('⏳ Pagamento pendente de confirmação');
+                    }
+                    break;
+                case 'rejected':
+                    console.log('❌ Pagamento rejeitado:', result.status_detail);
+                    break;
+            }
+
+            // Retornar resultado para o frontend
+            return ctx.response.json({
+                success: true,
+                id: result.id,
+                status: result.status,
+                status_detail: result.status_detail,
+                payment_method_id: result.payment_method_id,
+                transaction_amount: result.transaction_amount,
+                external_reference: result.external_reference,
+                point_of_interaction: result.point_of_interaction, // Para QR Code PIX
+                date_created: result.date_created,
+                date_approved: result.date_approved
+            });
+
+        } catch (error: any) {
+            console.error('❌ Erro ao processar pagamento:', error);
+            
+            // Log detalhado do erro
+            if (error.apiResponse) {
+                console.error('Resposta da API:', JSON.stringify(error.apiResponse, null, 2));
+            }
+            
+            ctx.response.status(error.status || 500);
+            return ctx.response.json({
+                success: false,
+                error: error.message || 'Erro ao processar pagamento',
+                details: error.cause || [],
+                status_code: error.status || 500
             });
         }
     }
@@ -96,6 +317,13 @@ export default class PaymentsController {
                 case 'payment':
                     await this.handlePaymentNotification(body, ctx);
                     break;
+                case 'rejected':
+                    console.log('🔴 Notificação de pagamento rejeitado recebida:', body);
+                    await this.handlePaymentNotification(body, ctx);
+                    break;
+                case 'pending':
+                    console.log('⏳ Notificação de pagamento pendente recebida:', body);
+                    await this.handlePaymentNotification(body, ctx);
                 default:
                     console.log(`📨 Tipo de notificação não tratada: ${body.type || body.topic}`);
                     break;
