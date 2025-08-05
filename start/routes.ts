@@ -8,7 +8,6 @@
 */
 
 import PaymentsController from '#controllers/payments_controller'
-import CheckoutProController from '#controllers/checkout_pro_controller'
 import router from '@adonisjs/core/services/router'
 import { HttpContext } from '@adonisjs/core/http'
 

@@ -278,6 +278,26 @@
                     ${message}
                 </div>
             `;
+            
+            // Adicionar botão de atualização para pagamentos pendentes
+            if (type === 'info' || type === 'warning') {
+                const refreshButton = document.createElement('button');
+                refreshButton.id = 'refresh-status-btn';
+                refreshButton.innerHTML = '🔄 Atualizar Status';
+                refreshButton.style.background = '#667eea';
+                refreshButton.style.color = 'white';
+                refreshButton.style.border = 'none';
+                refreshButton.style.padding = '8px 16px';
+                refreshButton.style.borderRadius = '5px';
+                refreshButton.style.cursor = 'pointer';
+                refreshButton.style.marginTop = '10px';
+                refreshButton.style.display = 'block';
+                refreshButton.style.marginLeft = 'auto';
+                refreshButton.style.marginRight = 'auto';
+                
+                container.querySelector('.alert').appendChild(document.createElement('br'));
+                container.querySelector('.alert').appendChild(refreshButton);
+            }
         }
 
         // Função para gerar referência única
@@ -450,9 +470,13 @@
                             // Mostrar QR Code se disponível
                             if (result.point_of_interaction?.transaction_data?.qr_code_base64) {
                                 showPixQRCode(result);
+                                // Iniciar polling para verificar status do pagamento
+                                startPaymentStatusPolling(result.id, result.external_reference);
                             }
                         } else {
                             showStatus('⏳ Pagamento pendente. Aguardando confirmação.', 'info');
+                            // Iniciar polling para verificar status do pagamento
+                            startPaymentStatusPolling(result.id, result.external_reference);
                         }
                         break;
                         
@@ -506,6 +530,90 @@
                 showStatus('✅ Código PIX copiado!', 'success');
             }).catch(() => {
                 prompt('Copie o código PIX:', code);
+            });
+        }
+        
+        // Função para verificar o status do pagamento periodicamente
+        function startPaymentStatusPolling(paymentId, externalReference) {
+            console.log(`Iniciando polling para pagamento ID: ${paymentId}, Ref: ${externalReference}`);
+            
+            // Intervalo de verificação (em milissegundos) - a cada 5 segundos
+            const pollingInterval = 5000;
+            
+            // Contador de tentativas
+            let attempts = 0;
+            const maxAttempts = 60; // 5 minutos (60 * 5 segundos)
+            
+            const checkPaymentStatus = async () => {
+                attempts++;
+                console.log(`Verificando status do pagamento (tentativa ${attempts})...`);
+                
+                try {
+                    // Consultar o status do pagamento usando a rota de external_reference
+                    const response = await fetch(`/payment/external/${externalReference}`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Erro ao consultar status: ${response.status}`);
+                    }
+                    
+                    const paymentData = await response.json();
+                    console.log('Status do pagamento:', paymentData);
+                    
+                    // Verificar se o pagamento foi aprovado
+                    if (paymentData.status === 'approved') {
+                        showStatus('✅ Pagamento aprovado! Obrigado pela compra.', 'success');
+                        clearInterval(pollingId);
+                        // Redirecionar para página de sucesso ou atualizar a UI
+                        setTimeout(() => {
+                            window.location.href = '/success.html?payment_id=' + paymentId;
+                        }, 2000);
+                        return;
+                    }
+                    
+                    // Verificar se o pagamento foi rejeitado
+                    if (paymentData.status === 'rejected') {
+                        showStatus('❌ Pagamento rejeitado. Por favor, tente novamente.', 'error');
+                        clearInterval(pollingId);
+                        return;
+                    }
+                    
+                    // Se atingiu o número máximo de tentativas
+                    if (attempts >= maxAttempts) {
+                        console.log('Número máximo de tentativas atingido.');
+                        clearInterval(pollingId);
+                        showStatus('⏱️ Tempo limite excedido. Verifique o status do seu pagamento mais tarde.', 'warning');
+                    }
+                    
+                } catch (error) {
+                    console.error('Erro ao verificar status do pagamento:', error);
+                    // Não interromper o polling por erros temporários
+                }
+            };
+            
+            // Iniciar o intervalo de verificação
+            const pollingId = setInterval(checkPaymentStatus, pollingInterval);
+            
+            // Primeira verificação imediata
+            checkPaymentStatus();
+            
+            // Opcionalmente, atualizar o status do pagamento manualmente
+            // O botão é criado dinamicamente na função showStatus
+            // Remover qualquer listener anterior
+            document.querySelectorAll('#refresh-status-btn').forEach(btn => {
+                btn.replaceWith(btn.cloneNode(true));
+            });
+            
+            // Adicionar listener ao botão atual ou futuro
+            document.addEventListener('click', function(event) {
+                if (event.target && event.target.id === 'refresh-status-btn') {
+                    console.log('Atualizando status manualmente...');
+                    checkPaymentStatus();
+                }
             });
         }
 
