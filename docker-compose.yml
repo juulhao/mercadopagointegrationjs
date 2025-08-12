@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: mp-integration
+    env_file:
+      - .env
+    ports:
+      - "3333:3333"
+    restart: unless-stopped
+    environment:
+      TZ: "UTC"
+      NODE_ENV: "production"
+      HOST: "0.0.0.0"
+      PORT: "3333"
+    command: ["node", "bin/server.js"]
