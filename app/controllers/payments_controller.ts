@@ -24,7 +24,7 @@ export default class PaymentsController {
      * Retorna a URL base correta baseada no ambiente
      */
     private getCheckoutUrl(): string {
-        return this.isProductionEnvironment() 
+        return this.isProductionEnvironment()
             ? 'https://www.mercadopago.com.br/checkout/v1/redirect'
             : 'https://sandbox.mercadopago.com.br/checkout/v1/redirect';
     }
@@ -57,7 +57,7 @@ export default class PaymentsController {
     public async directToMercadoLivreCheckoutPayments(ctx: HttpContext) {
         try {
             const body = await ctx.request.body();
-            console.log('Body received for payment:', body);
+            console.log('BODY DO PAGAMENTO:', body);
 
             // Adiciona campos para Checkout Pro
             const preferenceBody: any = {
@@ -68,8 +68,21 @@ export default class PaymentsController {
                     cost: body.shipping_cost,
                     mode: 'shipping_cost',
                 } : undefined,
-                // Configurações específicas para produção
-                notification_url: this.isProductionEnvironment() 
+                payment_methods: {
+                    excluded_payment_methods: [
+                       {
+                        "id": "bolbradesco"
+                       }
+                    ],
+                    excluded_payment_types: [
+                        {
+                            "id": "ticket"
+                        }
+                    ],
+                    installments: 2,
+                    default_installments: 2
+                },
+                notification_url: this.isProductionEnvironment()
                     ? body.notification_url || 'https://seudominio.com/webhook/mercadopago'
                     : undefined,
                 back_urls: {
@@ -87,7 +100,7 @@ export default class PaymentsController {
 
             const result = await preference.create({ body: preferenceBody });
             ctx.response.status(201);
-            
+
             // Log mais detalhado para produção
             if (this.isProductionEnvironment()) {
                 console.log('🔥 PRODUÇÃO - Preferência criada:', {
@@ -96,12 +109,12 @@ export default class PaymentsController {
                     amount: body.items?.reduce((sum: number, item: any) => sum + (item.unit_price * item.quantity), 0)
                 });
             } else {
-                console.log('Payment preference created successfully:', result);
+                console.log('🔥 TESTE - Pagamento criado:', result);
             }
 
             // Retornar URL correta baseada no ambiente
             const isProduction = this.isProductionEnvironment();
-            
+
             return ctx.response.json({
                 id: result.id,
                 init_point: result.init_point,
@@ -109,7 +122,7 @@ export default class PaymentsController {
                 checkout_url: isProduction ? result.init_point : result.sandbox_init_point,
                 external_reference: result.external_reference,
                 environment: isProduction ? 'production' : 'sandbox',
-                message: isProduction 
+                message: isProduction
                     ? '🔥 AMBIENTE DE PRODUÇÃO - Use dados reais para pagamento'
                     : 'Ambiente de TESTE - Use cartão 4509 9535 6623 3704, CVV 123, Validade 11/25'
             });
@@ -137,17 +150,18 @@ export default class PaymentsController {
 
             const preferenceBody = {
                 items: body.items,
-                payer: body.payer || {
-                    email: 'test@example.com'
-                },
+                payer: body.payer,
                 external_reference: body.external_reference,
-                // Habilitar métodos de pagamento específicos
                 payment_methods: {
-                    excluded_payment_methods: [], // Não excluir nenhum método
-                    excluded_payment_types: [],   // Não excluir nenhum tipo
-                    installments: 12              // Permitir parcelamento até 12x
+                    excluded_payment_methods: [
+                        "bolbradesco"
+                    ],
+                    excluded_payment_types: [
+                        "ticket"
+                    ],
+                    installments: 2,
                 },
-                notification_url: this.isProductionEnvironment() 
+                notification_url: this.isProductionEnvironment()
                     ? body.notification_url || 'https://seudominio.com/webhook/mercadopago'
                     : 'https://7912abc4a211.ngrok-free.app/webhook/mercadopago',
                 statement_descriptor: "Loja Eletronica",
@@ -157,7 +171,7 @@ export default class PaymentsController {
             };
 
             const result = await preference.create({ body: preferenceBody });
-            
+
             console.log('✅ Preferência criada para Payment Brick:', {
                 id: result.id,
                 external_reference: result.external_reference,
@@ -203,21 +217,21 @@ export default class PaymentsController {
 
             // Extrair payment_method_id do formData se disponível
             const paymentMethodId = body.payment_method_id || body.formData?.payment_method_id;
-            
+
             if (paymentMethodId) {
                 paymentData.payment_method_id = paymentMethodId;
-                
+
                 // Para PIX
                 if (paymentMethodId === 'pix') {
                     paymentData.payment_method_id = 'pix';
                     console.log('📱 Pagamento PIX detectado!');
                 }
-                
+
                 // Para cartão de crédito/débito
                 if (body.token || body.formData?.token) {
                     paymentData.token = body.token || body.formData.token;
                 }
-                
+
                 // Informações do pagador para cartão
                 if (body.payer || body.formData?.payer) {
                     const payerData = body.payer || body.formData.payer;
@@ -228,12 +242,12 @@ export default class PaymentsController {
                         last_name: payerData.last_name
                     };
                 }
-                
+
                 // Parcelamento
                 if (body.installments || body.formData?.installments) {
                     paymentData.installments = body.installments || body.formData.installments;
                 }
-                
+
                 // Informações do emissor
                 if (body.issuer_id || body.formData?.issuer_id) {
                     paymentData.issuer_id = body.issuer_id || body.formData.issuer_id;
@@ -246,7 +260,7 @@ export default class PaymentsController {
 
             // Criar pagamento
             const result = await payment.create({ body: paymentData });
-            
+
             console.log('📨 Resposta do Mercado Pago:', JSON.stringify(result, null, 2));
 
             // Log específico por status
@@ -282,12 +296,12 @@ export default class PaymentsController {
 
         } catch (error: any) {
             console.error('❌ Erro ao processar pagamento:', error);
-            
+
             // Log detalhado do erro
             if (error.apiResponse) {
                 console.error('Resposta da API:', JSON.stringify(error.apiResponse, null, 2));
             }
-            
+
             ctx.response.status(error.status || 500);
             return ctx.response.json({
                 success: false,
@@ -306,7 +320,7 @@ export default class PaymentsController {
         try {
             const body = ctx.request.body();
             const headers = ctx.request.headers();
-            
+
             console.log('🔔 === WEBHOOK MERCADO PAGO RECEBIDO ===');
             console.log('Headers:', JSON.stringify(headers, null, 2));
             console.log('Body:', JSON.stringify(body, null, 2));
@@ -336,7 +350,7 @@ export default class PaymentsController {
             }
 
             // Sempre responder 200 OK rapidamente para confirmar recebimento
-            return ctx.response.status(200).json({ 
+            return ctx.response.status(200).json({
                 status: 'received',
                 timestamp: new Date().toISOString()
             });
@@ -344,9 +358,9 @@ export default class PaymentsController {
         } catch (error: any) {
             console.error('🔥 === WEBHOOK ERROR ===');
             console.error('Error:', error);
-            
+
             // Mesmo com erro, responder 200 para evitar reenvios desnecessários
-            return ctx.response.status(200).json({ 
+            return ctx.response.status(200).json({
                 status: 'error',
                 message: 'Webhook received but processed with error'
             });
@@ -370,7 +384,7 @@ export default class PaymentsController {
         // TODO: Adicionar validação de assinatura se necessário
         // const signature = headers['x-signature'];
         // const requestId = headers['x-request-id'];
-        
+
         return true;
     }
 
@@ -380,7 +394,7 @@ export default class PaymentsController {
     private async handlePaymentNotification(body: any, _ctx: HttpContext) {
         try {
             const paymentId = body.data?.id || body['data.id'];
-            
+
             if (!paymentId) {
                 console.warn('⚠️ Payment ID não encontrado no webhook');
                 return;
@@ -390,7 +404,7 @@ export default class PaymentsController {
 
             // Buscar detalhes completos do pagamento
             const paymentDetails = await this.getPaymentDetails(paymentId);
-            
+
             if (!paymentDetails) {
                 console.error('❌ Não foi possível buscar detalhes do pagamento');
                 return;
@@ -484,17 +498,17 @@ export default class PaymentsController {
      */
     private async handleApprovedPayment(paymentDetails: any) {
         console.log('🎉 Processando pagamento aprovado:', paymentDetails.external_reference);
-        
+
         // TODO: Implementar sua lógica aqui
         // Exemplos:
         // - Atualizar status do pedido no banco de dados
         // - Enviar email de confirmação
         // - Disparar processo de entrega
         // - Atualizar estoque
-        
+
         // Exemplo: Salvar no banco que o pagamento foi aprovado
         await this.updateOrderStatus(paymentDetails.external_reference, 'paid', paymentDetails);
-        
+
         // Exemplo: Enviar notificação em tempo real (WebSocket, SSE, etc.)
         await this.notifyFrontend(paymentDetails.external_reference, 'payment_approved', paymentDetails);
     }
@@ -504,7 +518,7 @@ export default class PaymentsController {
      */
     private async handlePendingPayment(paymentDetails: any) {
         console.log('⏳ Processando pagamento pendente:', paymentDetails.external_reference);
-        
+
         await this.updateOrderStatus(paymentDetails.external_reference, 'pending', paymentDetails);
         await this.notifyFrontend(paymentDetails.external_reference, 'payment_pending', paymentDetails);
     }
@@ -514,7 +528,7 @@ export default class PaymentsController {
      */
     private async handleRejectedPayment(paymentDetails: any) {
         console.log('❌ Processando pagamento rejeitado:', paymentDetails.external_reference);
-        
+
         await this.updateOrderStatus(paymentDetails.external_reference, 'rejected', paymentDetails);
         await this.notifyFrontend(paymentDetails.external_reference, 'payment_rejected', paymentDetails);
     }
@@ -524,7 +538,7 @@ export default class PaymentsController {
      */
     private async handleCancelledPayment(paymentDetails: any) {
         console.log('🚫 Processando pagamento cancelado:', paymentDetails.external_reference);
-        
+
         await this.updateOrderStatus(paymentDetails.external_reference, 'cancelled', paymentDetails);
         await this.notifyFrontend(paymentDetails.external_reference, 'payment_cancelled', paymentDetails);
     }
@@ -535,7 +549,7 @@ export default class PaymentsController {
     private async updateOrderStatus(externalReference: string, status: string, paymentDetails: any) {
         try {
             console.log(`📝 Atualizando pedido ${externalReference} para status: ${status}`);
-            
+
             // TODO: Implementar update no banco de dados
             // Exemplo com banco de dados:
             // await Database.from('orders')
@@ -545,7 +559,7 @@ export default class PaymentsController {
             //     payment_id: paymentDetails.id,
             //     updated_at: new Date()
             //   });
-            
+
             console.log(`✅ Pedido ${externalReference} atualizado com sucesso`);
         } catch (error) {
             console.error(`❌ Erro ao atualizar pedido ${externalReference}:`, error);
@@ -558,7 +572,7 @@ export default class PaymentsController {
     private async notifyFrontend(externalReference: string, event: string, paymentDetails: any) {
         try {
             console.log(`📱 Notificando front-end sobre ${event} para pedido ${externalReference}`);
-            
+
             // TODO: Implementar notificação em tempo real
             // Opções:
             // 1. WebSocket
@@ -566,7 +580,7 @@ export default class PaymentsController {
             // 3. Push Notification
             // 4. Email/SMS
             // 5. Salvar em cache/banco para polling
-            
+
             // Exemplo: Salvar notificação para polling
             const notification = {
                 external_reference: externalReference,
@@ -577,10 +591,10 @@ export default class PaymentsController {
                 currency: paymentDetails.currency_id,
                 timestamp: new Date().toISOString()
             };
-            
+
             // TODO: Salvar notificação no banco/cache
             console.log('📨 Notificação preparada:', notification);
-            
+
         } catch (error) {
             console.error(`❌ Erro ao notificar front-end:`, error);
         }
@@ -592,14 +606,14 @@ export default class PaymentsController {
     public async getPaymentStatus(ctx: HttpContext) {
         try {
             const { external_reference } = ctx.params;
-            
+
             console.log(`🔍 Consultando status do pedido: ${external_reference}`);
-            
+
             // TODO: Buscar no banco de dados
             // const order = await Database.from('orders')
             //   .where('external_reference', external_reference)
             //   .first();
-            
+
             // Simulação de resposta
             const orderStatus = {
                 external_reference: external_reference,
@@ -607,9 +621,9 @@ export default class PaymentsController {
                 payment_id: null,
                 last_updated: new Date().toISOString()
             };
-            
+
             return ctx.response.json(orderStatus);
-            
+
         } catch (error: any) {
             console.error('❌ Erro ao consultar status:', error);
             return ctx.response.status(500).json({
@@ -650,10 +664,10 @@ export default class PaymentsController {
         // TODO: Implementar lógica para pontos
     }
 
-        /**
-     * Consulta pagamentos do Mercado Pago por external_reference
-     * GET /payment/external/:external_reference
-     */
+    /**
+ * Consulta pagamentos do Mercado Pago por external_reference
+ * GET /payment/external/:external_reference
+ */
     public async getPaymentsByExternalReference(ctx: HttpContext) {
         try {
             const { external_reference } = ctx.params;
